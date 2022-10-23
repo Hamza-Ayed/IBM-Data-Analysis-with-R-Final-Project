@@ -1,0 +1,288 @@
+---
+title: "IBM Data Analysis with R Final Project"
+author: "Hamza Ayed"
+date: "2022-10-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Hello my name is **Hamza Ayed**, below is a project that I completed as part of the IBM Data Analysis with R project. In this assignment we were tasked with developing a model to predict precipitation based on certain variables. To improve this assignment I have created this R markdown to present my results.
+
+Here is a link to the protocol I followed https://nbviewer.org/urls/cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DA0151EN-SkillsNetwork/labs/Final_project/IBM-DS-with-R-2-Data-Analysis-with-R.ipynb.
+
+### Installing and loading required packages
+```{r}
+#install.packages("rlang")
+#install.packages("tidymodels")
+#install.packages("tidyverse")
+
+```
+
+### Load Packages
+```{r}
+library(tidymodels)
+library(rlang)
+library(tidyverse)
+```
+
+
+
+### Download Dataset fro *URL*
+```{r}
+url <- 'https://dax-cdn.cdn.appdomain.cloud/dax-noaa-weather-data-jfk-airport/1.1.4/noaa-weather-sample-data.tar.gz'
+download.file(url, destfile = "noaa-weather-sample-data.tar.gz")
+```
+
+### Untar the zipped file.
+```{r}
+untar("noaa-weather-sample-data.tar.gz", tar = "internal")
+df <- read_csv("noaa-weather-sample-data/jfk_weather_sample.csv")
+```
+### Show df 
+```{r}
+head(df)
+```
+
+```{r}
+glimpse(df)
+```
+
+
+```{r}
+summary(df)
+```
+
+### Create subset of df
+```{r}
+
+subset<-select(df,c(HOURLYRelativeHumidity,HOURLYDRYBULBTEMPF,HOURLYPrecip,HOURLYWindSpeed,HOURLYStationPressure))
+head(subset,10)
+```
+
+### Inspect the unique values present in the column HOURLYPrecip (with unique(dataframe$column)) to see these values.
+```{r}
+unique( subset$HOURLYPrecip)
+```
+
+### Convert T value to 0 and remove last letter **s** 
+```{r}
+subset$HOURLYPrecip[subset$HOURLYPrecip == "T"] <- 0
+
+subset$HOURLYPrecip <- str_remove(subset$HOURLYPrecip, pattern = "s$")
+#show again to surly
+unique( subset$HOURLYPrecip)
+```
+```{r}
+glimpse(subset)
+```
+### convert column fro char to numric
+```{r}
+subset$HOURLYPrecip <- (as.numeric(subset$HOURLYPrecip))
+glimpse(df)
+```
+
+### Rename columns 
+```{r}
+NOAA_weather2 <- subset %>%
+  rename(relative_humidity = HOURLYRelativeHumidity,
+         dry_bulb_temp_f = HOURLYDRYBULBTEMPF,
+         precip = HOURLYPrecip, 
+         wind_speed = HOURLYWindSpeed,
+         station_pressure = HOURLYStationPressure)
+summary(NOAA_weather2)
+```
+### Remove NA from precip column
+```{r}
+NOAA_weather2$precip<-replace_na(NOAA_weather2$precip,replace = 0)
+summary(NOAA_weather2)
+```
+### Exploratory Data Analysis
+#####  *The next stage was to split the data into training and testing set in a 80:20 ratio.*
+
+```{r}
+set.seed(1234)
+NOAA_weather_split <- initial_split(NOAA_weather2, prop = 0.8)
+train_data <- training(NOAA_weather_split)
+test_data <- testing(NOAA_weather_split)
+```
+###### The next task was to visualise variables relative_humidity, dry_bulb_temp_f, precip, wind_speed, station_pressure. Using the training data set. I did this using a simple histogram
+```{r}
+ggplot(train_data, aes(x = relative_humidity))+
+  geom_histogram(color = "darkblue", fill = "lightblue")
+```
+
+```{r}
+ggplot(train_data, aes(x = dry_bulb_temp_f))+
+geom_histogram(color = "darkblue", fill = "lightblue")
+```
+
+```{r}
+ggplot(train_data, aes(x = precip))+
+geom_histogram(color = "darkblue", fill = "lightblue")
+
+```
+
+```{r}
+ggplot(train_data, aes(x = wind_speed))+
+geom_histogram(color = "darkblue", fill = "lightblue")
+```
+
+```{r}
+ggplot(train_data, aes(x = station_pressure))+
+geom_histogram(color = "darkblue", fill = "lightblue")
+```
+
+### Linear Regression
+###### After visualising the data I then created a simple linear regression model using precip as the response variable and each of relative_humidity, dry_bulb_temp_f,wind_speed or station_pressure as the predictor variable. As the goal of this assignment was to predict precipitation based on certian variables. The models were then visualised using a scatter plot.
+
+```{r}
+linear_model_humidity <- lm(precip ~ relative_humidity, data = train_data)
+
+ggplot(train_data, aes(x = relative_humidity, y = precip)) +
+geom_point() +
+stat_smooth(method = "lm", col =  "red")
+```
+
+
+```{r}
+linear_model_drybulbtempf <- lm(precip ~ dry_bulb_temp_f, data = train_data)
+
+ggplot(train_data, aes(x = dry_bulb_temp_f, y = precip)) +
+geom_point() +labs(title = 'train_data')+
+stat_smooth(method = "lm", col =  "blue")
+```
+
+```{r}
+linear_model_windspeed <- lm(precip ~ wind_speed, data = train_data)
+ggplot(train_data, aes(x = wind_speed, y = precip)) +
+geom_point() +
+stat_smooth(method = "lm", col  = "blue")
+```
+
+
+```{r}
+linear_model_stationpressure <- lm(precip ~ station_pressure, data = train_data)
+ggplot(train_data, aes(x = station_pressure, y = precip)) +
+geom_point() +
+stat_smooth(method = "lm", col ="blue")
+```
+
+I then outputted a summary of the different models
+```{r}
+summary(linear_model_humidity)
+```
+
+### Improving the model
+After creating a simple linear regression model the next task was to improve the model by adding new features.
+
+Based on the results of the previous models. relative_humidity appeared to have the strongest predictior of precip. However, the results were non-linear and so I created a 10th order polynomial regression model.
+```{r}
+polynomial_relativehumidity <- lm(precip ~ poly(relative_humidity, 10, raw = TRUE), data = train_data)
+
+ggplot(data = train_data, aes(relative_humidity, precip))+
+       geom_point() +
+       geom_smooth(method = "lm", formula = y ~ poly(x,10))
+```
+
+##### Showing a summary of the 10th order polynomial regression model
+```{r}
+summary(polynomial_relativehumidity)
+```
+
+##### I also created a multiple linear regression model that included all the predictor variables to attempt to create a more accurate predictor variable by adding more factors.
+
+```{r}
+mlr_all <- lm(precip ~ relative_humidity + dry_bulb_temp_f + wind_speed + station_pressure, data = train_data)
+
+ggplot(train_data, aes(x = relative_humidity + dry_bulb_temp_f + wind_speed + station_pressure, y = precip)) +
+geom_point() +
+stat_smooth(method = "lm", col = "blue")
+```
+
+#### showing a summary of the MLR model
+```{r}
+summary(mlr_all)
+```
+
+
+### Which model was better?
+The final task in the assignment was to determine which model was better by evaluating the models on the test data. To do this I used the metric R-squared. As this shows the proportion of the variation in the dependent variable that is predictable from the independent variable(s).
+
+To do this I first had to create a matrix that contained the predicted and true values. I first did this with the multiple linear regression model and the polynomial regression model.
+
+#### MLR model
+```{r}
+MLR <- linear_reg() %>%
+  set_engine(engine = "lm")
+
+train_fit <- MLR %>% 
+    fit(precip ~ relative_humidity + dry_bulb_temp_f + wind_speed + station_pressure, data = train_data)
+
+MLR_results <- train_fit %>%
+  predict(new_data = test_data) %>%
+  mutate(truth = test_data$precip)
+```
+
+```{r}
+head(MLR_results)
+```
+
+#### Polynomial model
+```{r}
+polynomial <- linear_reg () %>%
+    set_engine(engine = "lm")
+    
+train_fit2 <- polynomial %>% 
+      fit(precip ~ poly(relative_humidity, 10, raw = TRUE), data = train_data)
+
+poly_relative_humidity <- train_fit2 %>%
+  predict(new_data = test_data) %>%
+  mutate(truth = test_data$precip)
+```
+
+
+Taking a look at the matrix
+```{r}
+head(poly_relative_humidity)
+```
+
+#### Creating a matrix to present the best model
+After calculating the predicted and true values for both models I then calculated their R squared.
+```{r}
+rsq_MLR <- rsq(MLR_results, truth = truth, estimate = .pred)
+
+rsq_MLR
+```
+
+
+```{r}
+rsq_poly_humiditity <- rsq(poly_relative_humidity, truth = truth, estimate = .pred)
+
+rsq_poly_humiditity
+
+```
+
+ 
+I then fitted the values into a dataframe for comparison including the R-squared calculated based on the training data.
+
+
+```{r}
+model_names <- c("Relative_humidity_poly", "MLR_all")
+train_error <- c("0.03445", "0.03106")
+test_error  <- c("0.0698", "0.08681 ")
+
+comparison_df <- data.frame(model_names, train_error, test_error)
+```
+#### Comparison dataframe
+```{r}
+comparison_df
+```
+The results of the R-squared showed the 10th order polynomial regression model of relative_humidity to be the better model. As it has a greater R-squared value for both the training and testing data. Furthemore, I believe a polynomial regression model of higher order would have produced an even greater R-squared value.
+
+This concludes the end of my project. Thank you for reading and thanks to IBM for providing the Data Analysis with R course; that has taught me a lot about R programming and the data analysis process and introduced me to the topic of data visualisation.
+
+
